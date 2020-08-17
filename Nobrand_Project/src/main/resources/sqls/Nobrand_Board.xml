@@ -1,0 +1,487 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.min.edu.board">
+
+<!-- allBoardList 전체 게시글 조회(공지사항 제외)-->
+<select id="allBoardList" resultType="BoardDto" parameterType="RowNumDto">
+SELECT ROWNUM RNUM,SEQ, ID, TITLE, CONTENT, FILE_SEQ, THUMBIMG, NBRIMG,
+			C_COUNT, READCOUNT, GUBUN, DELFLAG, REGDATE
+	FROM 
+	(
+		SELECT ROWNUM RNUM,SEQ, ID, TITLE, CONTENT, FILE_SEQ, THUMBIMG, NBRIMG,
+						C_COUNT, READCOUNT, GUBUN, DELFLAG, REGDATE 
+		FROM
+	       (
+	       SELECT * 
+	       		FROM
+	       		(
+		 	 	  SELECT n.SEQ, n.ID, n.TITLE, n.CONTENT, 
+		 	 	  		n1.FILE_SEQ, n.THUMBIMG , n.NBRIMG, 
+						n.READCOUNT, n.GUBUN, n.DELFLAG, n.REGDATE 	
+                   FROM NOBRANDBOARD n LEFT JOIN 
+                (
+                   SELECT BOARD_SEQ , COUNT(*) FILE_SEQ 
+                   		FROM NOBRANDFILE WHERE DELFLAG ='N' 
+                   							GROUP BY BOARD_SEQ 
+				) n1 ON n.SEQ = n1.BOARD_SEQ ORDER BY SEQ DESC
+			)n2 LEFT JOIN
+						(
+						SELECT BOARD_SEQ ,COUNT(*) C_COUNT 
+			           		FROM COMMENTS c WHERE DELFLAG='N'
+			           						 GROUP BY BOARD_SEQ 
+					) c1 ON n2.SEQ = c1.BOARD_SEQ 
+					WHERE DELFLAG ='N' AND (GUBUN = 'R' OR GUBUN = 'J') 
+												ORDER BY SEQ DESC
+			)
+	)
+  WHERE RNUM BETWEEN #{start} AND #{end} 
+</select>
+
+
+<!-- 검색 -->
+<select id="boardSearch" resultType="BoardDto" parameterType="java.util.Map">
+SELECT ROWNUM RNUM,SEQ, ID, TITLE, CONTENT, FILE_SEQ, THUMBIMG, NBRIMG,
+			C_COUNT, READCOUNT, GUBUN, DELFLAG, REGDATE
+	FROM 
+	(
+		SELECT ROWNUM RNUM,SEQ, ID, TITLE, CONTENT, FILE_SEQ, THUMBIMG, NBRIMG,
+						C_COUNT, READCOUNT, GUBUN, DELFLAG, REGDATE 
+		FROM
+	       (
+	       SELECT * 
+	       		FROM
+	       		(
+		 	 	  SELECT n.SEQ, n.ID, n.TITLE, n.CONTENT, n1.FILE_SEQ, n.THUMBIMG , n.NBRIMG, 
+									n.READCOUNT, n.GUBUN, n.DELFLAG, n.REGDATE 	
+                   FROM NOBRANDBOARD n LEFT JOIN 
+                (
+                   SELECT BOARD_SEQ , COUNT(*) FILE_SEQ 
+                   		FROM NOBRANDFILE WHERE DELFLAG ='N' GROUP BY BOARD_SEQ 
+				) n1 ON n.SEQ = n1.BOARD_SEQ ORDER BY SEQ DESC
+			)n2 LEFT JOIN
+				(
+				SELECT BOARD_SEQ ,COUNT(*) C_COUNT 
+			           		FROM COMMENTS c  WHERE DELFLAG='N' GROUP BY BOARD_SEQ 
+					) c1 ON n2.SEQ = c1.BOARD_SEQ 
+		 			<trim prefix="WHERE" prefixOverrides="OR">
+						<if test="searchType.equals(title) != null">
+							DELFLAG = 'N' AND  
+								<![CDATA[TITLE LIKE '%'||#{keyword}||'%']]>
+						</if>
+						<if test="searchType.equals(content) != null">
+							OR DELFLAG = 'N' AND 
+								<![CDATA[CONTENT LIKE '%'||#{keyword}||'%']]>
+						</if>
+					</trim> 
+				ORDER BY SEQ DESC
+			)
+	)
+  WHERE RNUM BETWEEN #{start} AND #{end} 
+</select>
+
+<!-- 검색 결과에 따른 페이지 총 개수 -->
+<select id="searchCount" resultType="java.lang.Integer" parameterType="java.util.Map">
+SELECT COUNT(*) FROM NOBRANDBOARD
+	<trim prefix="WHERE" prefixOverrides="OR">
+		<if test="searchType.equals(title) != null">
+			DELFLAG = 'N' AND  
+				<![CDATA[TITLE LIKE '%'||#{keyword}||'%']]>
+		</if>
+		<if test="searchType.equals(content) != null">
+			OR DELFLAG = 'N' AND 
+				<![CDATA[CONTENT LIKE '%'||#{keyword}||'%']]>
+		</if>
+	</trim> 
+</select>
+
+<!-- 나의 게시물 조회 && 해당 아이디 게시물 조회 -->
+<select id="myBoardList" resultType="BoardDto" parameterType="RowNumDto">
+SELECT ROWNUM RNUM,SEQ, ID, TITLE, CONTENT, FILE_SEQ, THUMBIMG, NBRIMG,
+			C_COUNT, READCOUNT, GUBUN, DELFLAG, REGDATE
+	FROM 
+	(
+		SELECT ROWNUM RNUM,SEQ, ID, TITLE, CONTENT, FILE_SEQ, THUMBIMG, NBRIMG,
+						C_COUNT, READCOUNT, GUBUN, DELFLAG, REGDATE 
+		FROM
+	       (
+	       SELECT * 
+	       		FROM
+	       		(
+		 	 	  SELECT n.SEQ, n.ID, n.TITLE, n.CONTENT, n1.FILE_SEQ, n.THUMBIMG , n.NBRIMG, 
+									n.READCOUNT, n.GUBUN, n.DELFLAG, n.REGDATE 	
+                   FROM NOBRANDBOARD n LEFT JOIN 
+                (
+                   SELECT BOARD_SEQ , COUNT(*) FILE_SEQ 
+                   		FROM NOBRANDFILE WHERE DELFLAG ='N' GROUP BY BOARD_SEQ 
+				) n1 ON n.SEQ = n1.BOARD_SEQ ORDER BY SEQ DESC
+			)n2 LEFT JOIN
+						(
+						SELECT BOARD_SEQ ,COUNT(*) C_COUNT 
+			           		FROM COMMENTS c WHERE DELFLAG='N' GROUP BY BOARD_SEQ 
+					) c1 ON n2.SEQ = c1.BOARD_SEQ WHERE ID=#{id} AND DELFLAG ='N' ORDER BY SEQ DESC
+			)
+	)
+  WHERE RNUM BETWEEN #{start} AND #{end} 
+</select>
+
+<!-- 상세보기 게시판 리스트(글 작성한 id의 리스트) -->
+<select id="selList" resultType="BoardDto" parameterType="java.lang.String">
+SELECT ROWNUM RNUM,SEQ, ID, TITLE, CONTENT, FILE_SEQ, THUMBIMG, NBRIMG,
+				C_COUNT, READCOUNT, GUBUN, DELFLAG, REGDATE
+		FROM 
+			(
+			SELECT ROWNUM RNUM,SEQ, ID, TITLE, CONTENT, FILE_SEQ, THUMBIMG, NBRIMG,
+				C_COUNT, READCOUNT, GUBUN, DELFLAG, REGDATE
+				FROM
+					(
+					SELECT ROWNUM RNUM,SEQ, ID, TITLE, CONTENT, FILE_SEQ, THUMBIMG, NBRIMG,
+							C_COUNT, READCOUNT, GUBUN, DELFLAG, REGDATE
+						FROM NOBRANDBOARD n WHERE DELFLAG='N' AND ID = #{id} ORDER BY READCOUNT DESC 
+			)
+		)
+	WHERE RNUM BETWEEN '1' AND '10'
+</select>
+
+<select id="mainList" resultType="BoardDto" parameterType="RowNumDto">
+	SELECT ROWNUM RNUM,SEQ, ID, TITLE, CONTENT, FILE_SEQ, THUMBIMG, NBRIMG,
+				C_COUNT, READCOUNT, GUBUN, DELFLAG, REGDATE 
+		FROM 
+			(
+			SELECT ROWNUM RNUM,SEQ, ID, TITLE, CONTENT, FILE_SEQ, THUMBIMG, NBRIMG,
+				C_COUNT, READCOUNT, GUBUN, DELFLAG, REGDATE
+				FROM
+					(
+					SELECT ROWNUM RNUM,SEQ, ID, TITLE, CONTENT, FILE_SEQ, THUMBIMG, NBRIMG,
+						C_COUNT, READCOUNT, GUBUN, DELFLAG, REGDATE
+					FROM NOBRANDBOARD n WHERE DELFLAG='N' AND (GUBUN='J' OR GUBUN='R') ORDER BY READCOUNT DESC 
+			)
+		)
+	WHERE RNUM BETWEEN #{start} AND #{end}
+</select>
+
+
+<!-- 전체 게시글 조회 main-->
+<select id="boardGMain"  resultType="BoardDto">
+SELECT ROWNUM RNUM,SEQ, ID, TITLE, CONTENT, FILE_SEQ,C_COUNT,
+			 READCOUNT, GUBUN, DELFLAG, REGDATE
+	FROM 
+	(
+		SELECT ROWNUM RNUM,SEQ, ID, TITLE, CONTENT, FILE_SEQ,C_COUNT ,
+			 READCOUNT, GUBUN, DELFLAG, REGDATE
+		FROM
+	       (
+	       SELECT * 
+	       		FROM
+	       		(
+		 	 	  SELECT n.SEQ, n.ID, n.TITLE, n.CONTENT, n1.FILE_SEQ,
+									n.READCOUNT, n.GUBUN, n.DELFLAG, n.REGDATE 	
+                   FROM NOBRANDBOARD n LEFT JOIN 
+                (
+                   SELECT BOARD_SEQ , COUNT(*) FILE_SEQ 
+                   		FROM NOBRANDFILE WHERE DELFLAG ='N' GROUP BY BOARD_SEQ 
+				) n1 ON n.SEQ = n1.BOARD_SEQ
+			)n2 LEFT JOIN
+						(
+						SELECT BOARD_SEQ ,COUNT(*) C_COUNT 
+			           		FROM COMMENTS c GROUP BY BOARD_SEQ 
+					) c1 ON n2.SEQ = c1.BOARD_SEQ WHERE GUBUN='G' AND DELFLAG ='N' ORDER BY SEQ DESC
+			)
+	)
+  WHERE RNUM BETWEEN '1' AND '4'
+</select>
+
+<!-- 전체 게시글 조회 main-->
+<select id="boardJMain"  resultType="BoardDto">
+SELECT ROWNUM RNUM,SEQ, ID, TITLE, CONTENT, FILE_SEQ,C_COUNT,
+			 READCOUNT, GUBUN, DELFLAG, REGDATE
+	FROM 
+	(
+		SELECT ROWNUM RNUM,SEQ, ID, TITLE, CONTENT, FILE_SEQ,C_COUNT ,
+			 READCOUNT, GUBUN, DELFLAG, REGDATE
+		FROM
+	       (
+	       SELECT * 
+	       		FROM
+	       			(
+		 	 	  SELECT n.SEQ, n.ID, n.TITLE, n.CONTENT, n1.FILE_SEQ,
+									n.READCOUNT, n.GUBUN, n.DELFLAG, n.REGDATE 	
+                   FROM NOBRANDBOARD n LEFT JOIN 
+              	  (
+                   SELECT BOARD_SEQ , COUNT(*) FILE_SEQ 
+                   		FROM NOBRANDFILE WHERE DELFLAG ='N' GROUP BY BOARD_SEQ 
+					) n1 ON n.SEQ = n1.BOARD_SEQ
+					)n2 LEFT JOIN
+					(
+					SELECT BOARD_SEQ ,COUNT(*) C_COUNT 
+			      		FROM COMMENTS c  WHERE DELFLAG='N' GROUP BY BOARD_SEQ 
+					) c1 ON n2.SEQ = c1.BOARD_SEQ WHERE GUBUN='J' AND DELFLAG ='N' ORDER BY REGDATE DESC
+			)
+	)
+  WHERE RNUM BETWEEN '1' AND '6'
+</select>
+
+<!-- main화면에 뿌려줄 리뷰 게시판 -->
+<select id="boardRMain" resultType="BoardDto">
+SELECT ROWNUM RNUM,SEQ, ID, TITLE, CONTENT, FILE_SEQ,C_COUNT, NBRIMG ,THUMBIMG,
+			 READCOUNT, GUBUN, DELFLAG, REGDATE
+	FROM 
+	(
+		SELECT ROWNUM RNUM,SEQ, ID, TITLE, CONTENT, FILE_SEQ,C_COUNT , NBRIMG , THUMBIMG ,
+			 READCOUNT, GUBUN, DELFLAG, REGDATE
+		FROM
+	     	  (
+			   	SELECT * FROM (
+			 	  SELECT n.SEQ, n.ID, n.TITLE, n.CONTENT, n.FILE_SEQ, n1.C_COUNT,n.NBRIMG ,n.THUMBIMG ,
+										n.READCOUNT, n.GUBUN, n.DELFLAG, n.REGDATE
+			           FROM NOBRANDBOARD n LEFT JOIN 
+			        (
+			           SELECT BOARD_SEQ ,COUNT(*) C_COUNT 
+			           		FROM COMMENTS c  WHERE DELFLAG='N' GROUP BY BOARD_SEQ 
+					) n1 ON n.SEQ = n1.BOARD_SEQ WHERE GUBUN='R' AND DELFLAG ='N' ORDER BY SEQ DESC
+				)
+			)
+		)
+  WHERE REGDATE >= TO_CHAR(SYSDATE-7,'YYYYMMDD') AND RNUM BETWEEN '1' AND '3'
+</select>
+
+<!-- 공지 게시판 전체보기 -->
+<select id="boardGList" resultType="BoardDto">
+SELECT SEQ, ID, TITLE, CONTENT , FILE_SEQ, THUMBIMG, NBRIMG, C_COUNT,
+         READCOUNT, GUBUN, DELFLAG, REGDATE 
+                     FROM NOBRANDBOARD n 
+                      WHERE DELFLAG ='N' AND GUBUN ='G' ORDER BY SEQ DESC
+</select>
+
+<!-- 공지 게시판 상세보기 -->
+<select id="boardGSelect" parameterType="java.lang.String" resultType="BoardDto">
+SELECT SEQ, ID, TITLE, NVL(CONTENT,' ') CONTENT,  THUMBIMG, NBRIMG, FILE_SEQ,
+          C_COUNT, READCOUNT, GUBUN, DELFLAG, REGDATE 
+      FROM NOBRANDBOARD n 
+           WHERE SEQ=#{seq}
+</select>
+
+<!-- 자유 게시판 전체보기 -->
+<select id="boardJList" resultType="BoardDto">
+SELECT SEQ, ID, TITLE, CONTENT,  THUMBIMG, NBRIMG, C_COUNT, FILE_SEQ,
+         READCOUNT, GUBUN, DELFLAG, REGDATE 
+                     FROM NOBRANDBOARD n 
+                      WHERE DELFLAG ='N' AND GUBUN ='J' 
+                 ORDER BY SEQ DESC
+</select>
+
+<!-- 자유게시판 상세보기 -->
+<select id="boardJSelect" parameterType="java.lang.String" resultType="BoardDto">
+SELECT SEQ, ID, TITLE, NVL(CONTENT,' ')CONTENT,  THUMBIMG, NBRIMG, FILE_SEQ,
+          C_COUNT, READCOUNT, GUBUN, DELFLAG, REGDATE 
+      FROM NOBRANDBOARD n 
+           WHERE SEQ=#{seq}
+</select>
+
+<!-- 리뷰 게시판 전체보기 -->
+<select id="boardRList" resultType="BoardDto">
+SELECT SEQ, ID, TITLE, CONTENT,  THUMBIMG, NBRIMG, C_COUNT, FILE_SEQ,
+         READCOUNT, GUBUN, DELFLAG, REGDATE 
+                     FROM NOBRANDBOARD n 
+                      WHERE DELFLAG ='N' AND GUBUN ='R' 
+                  ORDER BY SEQ DESC
+</select>
+
+<!-- 리뷰 게시판 상세보기 -->
+<select id="boardRSelect" parameterType="java.lang.String" resultType="BoardDto">
+SELECT SEQ, ID, TITLE, NVL(CONTENT,' ') CONTENT,  THUMBIMG, NBRIMG, FILE_SEQ,
+          C_COUNT, READCOUNT, GUBUN, DELFLAG, REGDATE 
+      FROM NOBRANDBOARD n 
+           WHERE SEQ=#{seq}
+</select>
+
+<!-- 공지사항 게시판 새글 작성 -->
+<insert id="boardGWrite" parameterType="BoardDto">
+INSERT INTO NOBRAND.NOBRANDBOARD
+	(SEQ, ID, TITLE, CONTENT,THUMBIMG, NBRIMG, C_COUNT,
+				READCOUNT, GUBUN, DELFLAG, REGDATE)
+	VALUES(NOBRANDBOARD_SEQ.NEXTVAL, #{id}, #{title}, #{content},
+			0, 0, 0, 0, 'G', 'N', SYSDATE)
+</insert>
+
+<!-- 공지사항 게시판 글 수정-->
+<update id="boardGModify" parameterType="BoardDto">
+UPDATE NOBRANDBOARD SET TITLE=#{title}, CONTENT=#{content}
+     WHERE SEQ=#{seq}
+</update>
+
+<!-- 자유 게시판 새글 작성 -->
+<insert id="boardJWrite" parameterType="BoardDto">
+INSERT INTO NOBRAND.NOBRANDBOARD
+	(SEQ, ID, TITLE, CONTENT,THUMBIMG, NBRIMG, C_COUNT,
+				READCOUNT, GUBUN, DELFLAG, REGDATE)
+	VALUES(NOBRANDBOARD_SEQ.NEXTVAL, #{id}, #{title}, #{content},
+			0, 0, 0, 0, 'J', 'N', SYSDATE)
+</insert>
+<!-- 자유 게시판 글 수정 -->
+<update id="boardJModify" parameterType="BoardDto">
+UPDATE NOBRANDBOARD SET TITLE=#{title}, 
+                 CONTENT=#{content}
+     WHERE SEQ=#{seq}
+</update>
+
+<!-- 리뷰 게시판 새글 작성 -->
+<insert id="boardRWrite" parameterType="BoardDto">
+INSERT INTO NOBRAND.NOBRANDBOARD
+	(SEQ, ID, TITLE, CONTENT,THUMBIMG, NBRIMG, C_COUNT,
+				READCOUNT, GUBUN, DELFLAG, REGDATE)
+	VALUES(NOBRANDBOARD_SEQ.NEXTVAL, #{id}, #{title}, #{content},
+			#{thumbimg}, #{nbrimg}, 0, 0, 'R', 'N', SYSDATE)
+</insert>
+<!-- 리뷰 게시판 글 수정 -->
+<update id="boardRModify" parameterType="BoardDto">
+UPDATE NOBRANDBOARD SET TITLE=#{title}, 
+                 CONTENT=#{content}, THUMBIMG=#{thumbimg}, NBRIMG=#{nbrimg}
+     WHERE SEQ=#{seq}
+</update>
+
+<!-- 단일 삭제 -->
+<update id="boardOneDel" parameterType="java.lang.String" >
+UPDATE NOBRANDBOARD SET DELFLAG = 'Y'
+   WHERE DELFLAG='N' AND
+    SEQ=#{seq}
+</update>
+
+<!-- 다중삭제 -->
+<update id="boardDelete" parameterType="java.util.Map">
+UPDATE NOBRANDBOARD SET DELFLAG = 'Y'
+   WHERE DELFLAG='N' AND
+    SEQ IN
+	    <foreach collection="seq_" item="seq" open="(" separator="," close=")">
+   		   #{seq}
+        </foreach>      
+</update>
+
+<!-- 페이징 -->
+<select id="boardGPaging" parameterType="RowNumDto" resultType="BoardDto">
+SELECT ROWNUM RNUM,SEQ, ID, TITLE, CONTENT, FILE_SEQ, THUMBIMG, NBRIMG,
+			C_COUNT, READCOUNT, GUBUN, DELFLAG, REGDATE
+		FROM 
+			(
+			SELECT ROWNUM RNUM,SEQ, ID, TITLE, CONTENT, FILE_SEQ, THUMBIMG, NBRIMG,
+						C_COUNT, READCOUNT, GUBUN, DELFLAG, REGDATE 
+				FROM
+					(
+					SELECT ROWNUM RNUM,SEQ, ID, TITLE, CONTENT, FILE_SEQ, THUMBIMG, NBRIMG,
+							C_COUNT, READCOUNT, GUBUN, DELFLAG, REGDATE 
+						FROM NOBRANDBOARD n WHERE DELFLAG='N' AND GUBUN='G' ORDER BY SEQ DESC
+			)
+		)
+	WHERE RNUM BETWEEN #{start} AND #{end} 
+</select>
+<select id="boardJPaging" parameterType="RowNumDto" resultType="BoardDto">
+SELECT ROWNUM RNUM,SEQ, ID, TITLE, CONTENT, FILE_SEQ,C_COUNT,
+			 READCOUNT, GUBUN, DELFLAG, REGDATE
+	FROM 
+	(
+		SELECT ROWNUM RNUM,SEQ, ID, TITLE, CONTENT, FILE_SEQ,C_COUNT ,
+			 READCOUNT, GUBUN, DELFLAG, REGDATE
+		FROM
+	       (
+	       SELECT * 
+	       		FROM
+	       			(
+		 	 		  SELECT n.SEQ, n.ID, n.TITLE, n.CONTENT, n1.FILE_SEQ,
+									n.READCOUNT, n.GUBUN, n.DELFLAG, n.REGDATE 	
+            	       FROM NOBRANDBOARD n LEFT JOIN 
+                		(
+                   		  SELECT BOARD_SEQ , COUNT(*) FILE_SEQ 
+                   				FROM NOBRANDFILE WHERE DELFLAG ='N' GROUP BY BOARD_SEQ 
+						) n1 ON n.SEQ = n1.BOARD_SEQ
+					)n2 LEFT JOIN
+					(
+					  SELECT BOARD_SEQ ,COUNT(*) C_COUNT 
+			           		FROM COMMENTS c WHERE DELFLAG='N' GROUP BY BOARD_SEQ 
+					)c1 ON n2.SEQ = c1.BOARD_SEQ WHERE GUBUN='J' AND DELFLAG ='N' ORDER BY SEQ DESC
+			)
+	)
+  WHERE RNUM BETWEEN #{start} AND #{end}
+</select>
+
+<!-- 리뷰 게시판 페이징 -->
+<select id="boardRPaging" parameterType="RowNumDto" resultType="BoardDto">
+SELECT ROWNUM RNUM,SEQ, ID, TITLE, CONTENT, FILE_SEQ,C_COUNT, NBRIMG ,THUMBIMG,
+			 READCOUNT, GUBUN, DELFLAG, REGDATE
+	FROM 
+	(
+		SELECT ROWNUM RNUM,SEQ, ID, TITLE, CONTENT, FILE_SEQ,C_COUNT , NBRIMG , THUMBIMG ,
+			 READCOUNT, GUBUN, DELFLAG, REGDATE
+		FROM
+	     	  (
+			   	SELECT * FROM (
+			 	  SELECT n.SEQ, n.ID, n.TITLE, n.CONTENT, n.FILE_SEQ, n1.C_COUNT,n.NBRIMG ,n.THUMBIMG ,
+										n.READCOUNT, n.GUBUN, n.DELFLAG, n.REGDATE
+			           FROM NOBRANDBOARD n LEFT JOIN 
+			        (
+			           SELECT BOARD_SEQ ,COUNT(*) C_COUNT 
+			           		FROM COMMENTS c WHERE DELFLAG='N' GROUP BY BOARD_SEQ 
+					) n1 ON n.SEQ = n1.BOARD_SEQ WHERE GUBUN='R' AND DELFLAG ='N' ORDER BY SEQ DESC
+				)
+			)
+		)
+  WHERE  RNUM BETWEEN #{start} AND #{end}
+</select>
+
+<!-- 게시글 전체 개수 -->
+<select id="boardMyAll" resultType="java.lang.Integer" parameterType="java.lang.String">
+	SELECT COUNT(*) FROM NOBRANDBOARD WHERE DELFLAG='N' AND ID=#{id}
+</select>
+
+<select id="boardAll" resultType="java.lang.Integer">
+	SELECT COUNT(*) FROM NOBRANDBOARD WHERE DELFLAG='N' AND (GUBUN='J' OR GUBUN='R')
+</select>
+
+<select id="boardGAll" resultType="java.lang.Integer">
+	SELECT COUNT(*) FROM NOBRANDBOARD WHERE DELFLAG='N' AND GUBUN='G'
+</select>
+<select id="boardJAll" resultType="java.lang.Integer">
+	SELECT COUNT(*) FROM NOBRANDBOARD WHERE DELFLAG='N' AND GUBUN='J'
+</select>
+<select id="boardRAll" resultType="java.lang.Integer">
+	SELECT COUNT(*) FROM NOBRANDBOARD WHERE DELFLAG='N' AND GUBUN='R'
+</select>
+
+<!-- 내게시물의 SEQ최대값 -->
+<select id="SeqMax" resultType="java.lang.String">
+SELECT SEQ 
+	FROM NOBRANDBOARD n 
+		WHERE SEQ = (SELECT MAX(SEQ) FROM NOBRANDBOARD n2)
+</select>
+
+
+<!-- 파일영역 -->
+
+<!-- 파일 확인 -->
+<select id="fileSelect" parameterType="java.lang.String" resultType="FileDto">
+SELECT SEQ , BOARD_SEQ ,ORIGIN_NAME ,STORED_NAME, FILESIZE
+	FROM NOBRANDFILE n WHERE DELFLAG='N' AND BOARD_SEQ=#{board_seq} ORDER BY SEQ DESC
+</select>
+
+<!-- 파일추가 -->
+<insert id="fileInsert" parameterType="FileDto">
+INSERT INTO NOBRAND.NOBRANDFILE
+	(SEQ, BOARD_SEQ ,ORIGIN_NAME, STORED_NAME, FILESIZE, REGDATE, FILEPATH, DELFLAG)
+		VALUES(NOBRANDFILE_SEQ.NEXTVAL,#{board_seq}, #{origin_name}, #{stored_name}, #{filesize}, SYSDATE, #{filepath},'N')
+</insert>
+
+<!-- 파일 삭제 -->
+<update id="fileDelete" parameterType="java.lang.String">
+	UPDATE NOBRANDFILE 
+		SET DELFLAG  ='Y' WHERE SEQ = #{seq}
+</update>
+
+<!-- 조회수 증가 -->
+<update id="boardHit" parameterType="java.lang.String">
+	UPDATE NOBRANDBOARD SET READCOUNT = READCOUNT+1 WHERE SEQ =#{seq}
+</update>
+
+</mapper>
+
+
+
+
+

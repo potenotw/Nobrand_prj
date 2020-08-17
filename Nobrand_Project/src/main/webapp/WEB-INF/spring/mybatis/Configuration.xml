@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE configuration PUBLIC "-//mybatis.org//DTD Config 3.0//EN" "http://mybatis.org/dtd/mybatis-3-config.dtd" >
+<configuration>
+	<typeAliases>
+		<typeAlias type="com.min.edu.dtos.MemberDto" alias="MemberDto"/>
+		<typeAlias type="com.min.edu.dtos.BoardDto" alias="BoardDto"/>
+		<typeAlias type="com.min.edu.dtos.CommentsDto" alias="CommentsDto"/>
+		<typeAlias type="com.min.edu.dtos.RowNumDto" alias="RowNumDto"/>
+		<typeAlias type="com.min.edu.dtos.FileDto" alias="FileDto"/>
+	</typeAliases>
+	
+	<!-- mapper파일 연결 -->
+	<mappers>
+		<mapper resource="/sqls/Nobrand_Member.xml"/>
+		<mapper resource="/sqls/Nobrand_Board.xml"/>
+		<mapper resource="/sqls/Nobrand_Comments.xml"/>
+	</mappers>
+</configuration>

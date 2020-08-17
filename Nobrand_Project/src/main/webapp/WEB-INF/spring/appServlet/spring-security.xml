@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:security="http://www.springframework.org/schema/security"
+	xsi:schemaLocation="http://www.springframework.org/schema/security http://www.springframework.org/schema/security/spring-security-4.2.xsd
+		http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc-4.3.xsd
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.2.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.3.xsd">
+
+	<!-- 유의점. 디스패쳐 서블릿에서 사용하는 bean과 시큐리티에서 사용하는 bean과 다르다 -->
+	<!-- 시큐리티에서 사용하는 bean은 이곳에서 다시 설정 -->
+	<context:component-scan
+		base-package="com.min.edu" />
+	<mvc:annotation-driven />
+	
+	<!-- url패턴과 스프링 시큐리티를 무시-->
+
+	<!-- auto-config="true" 서비스들을 사용하겠다. -->
+	<!-- use-expressions : 보안 메소드를 사용하겠다 란 뜻 -->
+	<!-- pattern은 매핑 url / access : 접근 제한 통제하는 뜻 -->
+	<!-- intercept-url 설정할때 순서 중요함!! url에 따라 접근 가능 -->
+	<security:http auto-config="true" use-expressions="true">
+
+		<!-- 접근 권한이 없는 사람이 접근 시 403이 아닌 설정된 페이지로 보냄 -->
+<!-- 		<security:access-denied-handler -->
+<!-- 			error-page="/errorPage.do" /> -->
+		
+		<!-- 모든 사용자가 loginPage로 갈수 있또록 함 -->
+<security:intercept-url pattern="/loginPage.do" access="permitAll"/>
+<security:intercept-url pattern="/css/**" access="permitAll"/>
+<security:intercept-url pattern="/js/**" access="permitAll"/>
+<security:intercept-url pattern="/img/**" access="permitAll"/>
+<security:intercept-url pattern="/admin/**" access="hasRole('Admin')"/>
+<security:intercept-url pattern="/user/**" access="hasRole('User')"/>
+<security:intercept-url pattern="/**" access="permitAll"/>
+<!-- 		<security:intercept-url pattern="/loginPage.do" -->
+<!-- 			access="permitAll" /> -->
+ 		<!-- 유저페이지와 어드민 페이지를 자동으로 잡아줌 -->
+<!-- 		<security:intercept-url pattern="/admin/**" -->
+<!-- 			access=" hasRole('Admin')" /> -->
+<!-- 		<security:intercept-url pattern="/**" -->
+<!-- 			access="permitAll" /> -->
+
+
+		<!-- login-processing-url : 로그인 폼과 시큘리티를 매핑하는 주소 -->
+		<!-- login-page : 로그인 화면으로 가는 주소 -->
+		<!-- default-target-url : 로그인 성공시 갈 주소 -->
+		<!-- username-parameter : 아이디 input name 값 설정 -->
+		<!-- password-parameter : 비밀번호 input name 값 설정 -->
+		<!-- authentication-failure-url : 실패했을때 가는 주소 -->
+		<security:form-login
+			login-processing-url="/login.do" login-page="/loginPage.do"
+			default-target-url="/loginChk.do" username-parameter="id"
+			password-parameter="password"
+			authentication-failure-url="/loginPage.do?error"
+			always-use-default-target='true' />
+
+		<!-- invalidate-session : 로그아웃시 세션을 초기화 -->
+		<!-- logout-url : 시큘리티 로그아웃 주소 매핑 -->
+		<!-- logout-success-url : 로그아웃 성공시 이동 url -->
+		<security:logout invalidate-session="true"
+			logout-url="/logout.do" logout-success-url="/loginPage.do?logout"
+			delete-cookies="JSESSIONID,SPRING_SECURITY_REMEMBER_ME_COOKIE" />
+		<!-- delete-cookies 자동로그인 -->
+		<!-- 로그아웃을 하면 쿠키가 삭제되지만 쿠키가 삭제되지 않는다면 로그인없이 홈페이지ㄷ릉오면 로그인안해도됌 -->
+		<!-- token-validity-seconds사용자의 쿠키 유지 시간 -->
+		<security:remember-me key="nobrand"
+			token-validity-seconds="2419200" remember-me-parameter="remember-me" />
+
+
+		<!-- 보안향상을 위한 csrf를 사용하지 않겠다 -->
+		<security:csrf disabled="true" />
+
+		<!-- invalid-session-url / expired-url : 만료된 혹은 자동로그아웃된 유저가 유저 홈페이지에 들어왔을 
+			때 -->
+		<!-- max-sessions : 한번에 로그인 가능한 최대 세션 수 -->
+		<!-- 자동로그아웃됌 -->
+		<security:session-management
+			invalid-session-url="/loginPage.do">
+			<security:concurrency-control
+				max-sessions="1" expired-url="/loginPage.do" />
+		</security:session-management>
+
+	</security:http>
+
+	<!-- UserDatailsSErvice를 상속 받아 코스튬한 컨트롤러 bean 생성 -->
+	<bean id="securityController"
+		class="com.min.edu.ctrl.SecurityController" />
+	
+	<!-- 비밀번호 암호화 클래스 bean 생성 -->
+	
+	<bean id="passwordEncoder"
+		class="org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder" />
+
+	<!-- 시큘리티를 돌 때 이 클래스를 사용하겠다. -->
+	
+	<security:authentication-manager>
+		<security:authentication-provider
+			user-service-ref="securityController">
+			<security:password-encoder ref="passwordEncoder"/>	
+		</security:authentication-provider>
+	</security:authentication-manager>
+</beans>
